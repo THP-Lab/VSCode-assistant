@@ -72,8 +72,10 @@ export class ApiService implements MessageService {
                 filesCount: this.currentFiles.length
             });
 
-            const response = await axios.post(`${this.apiUrl}/chat/analyze`, {
-                message,
+            const response = await axios.post(`${this.apiUrl}/aa56e063-3b77-02d7-b424-6f6bd0e5a83a/message`, {
+                text: message,
+                roomId: "vscode-room",
+                userId: "vscode-user",
                 files: this.currentFiles.map(f => ({
                     name: f.name,
                     content: f.content
@@ -83,9 +85,12 @@ export class ApiService implements MessageService {
             console.log('Received from API:', response.data);
 
             this.messages.push({ type: 'user', content: message });
-            this.addBotResponse(response.data.message);
-
-            return response.data.message;
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                this.addBotResponse(response.data[0].text);
+                return response.data[0].text;
+            } else {
+                throw new Error('Unexpected API response format');
+            }
         } catch (error) {
             console.error('API Error:', error.response?.data || error.message);
             throw error;
