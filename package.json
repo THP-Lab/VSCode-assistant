@@ -243,6 +243,7 @@
 		"default-shell": "^2.2.0",
 		"delay": "^6.0.0",
 		"diff": "^5.2.0",
+		"discord.js": "^14.14.1",
 		"dotenv": "^16.4.7",
 		"execa": "^9.5.2",
 		"fast-deep-equal": "^3.1.3",

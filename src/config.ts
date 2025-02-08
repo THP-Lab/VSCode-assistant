@@ -9,6 +9,7 @@ export const config = {
     discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL,
     discordChannelId: process.env.DISCORD_CHANNEL_ID,
     discordApiToken: process.env.DISCORD_API_TOKEN,
+    discordUserId: process.env.DISCORD_USER_ID,
     botName: 'Charlotte AI',
     
     // Nouvelle config API

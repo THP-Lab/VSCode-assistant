@@ -4,34 +4,38 @@ import { config } from '../config';
 import { MessageService } from './baseService';
 
 export class DiscordService implements MessageService {
-    private discordWebhookUrl: string;
+    private apiUrl: string;
     private discordChannelId: string;
+    private discordUserId: string;
     private botName: string = 'Charlotte AI';
     private chatPanel: vscode.WebviewPanel | undefined;
     private messages: {type: 'user' | 'bot', content: string}[] = [];
     private currentFiles: { name: string, content: string, size: number }[] = [];
 
     constructor() {
-        if (!config.discordWebhookUrl || !config.discordChannelId) {
-            throw new Error('Discord configuration is missing');
+        if (!config.apiUrl || !config.discordChannelId || !config.discordUserId) {
+            throw new Error('Configuration is missing required values (apiUrl, discordChannelId, or discordUserId)');
         }
-        this.discordWebhookUrl = config.discordWebhookUrl;
+        this.apiUrl = config.apiUrl;
         this.discordChannelId = config.discordChannelId;
+        this.discordUserId = config.discordUserId;
+        
+        if (!this.apiUrl || !this.discordChannelId) {
+            throw new Error('Configuration is missing');
+        }
     }
 
     public ensureChatPanel() {
         if (!this.chatPanel) {
             this.chatPanel = vscode.window.createWebviewPanel(
                 'chatPanel',
-                'Chat with Discord Service',
+                'Chat with Charlotte (Discord)',
                 vscode.ViewColumn.Two,
                 {
                     enableScripts: true,
                     retainContextWhenHidden: true
                 }
             );
-
-            this.setupDiscordListener();
 
             this.chatPanel.onDidDispose(() => {
                 this.chatPanel = undefined;
@@ -75,76 +79,35 @@ export class DiscordService implements MessageService {
                 throw new Error('Message cannot be empty');
             }
 
-            // Envoyer tous les fichiers s'il y en a
-            if (this.currentFiles.length > 0) {
-                for (const file of this.currentFiles) {
-                    const chunkSize = 1500;
-                    const chunks = [];
+            console.log('API URL:', this.apiUrl);
+            console.log('Sending to API:', {
+                message,
+                filesCount: this.currentFiles.length
+            });
 
-                    for (let i = 0; i < file.content.length; i += chunkSize) {
-                        chunks.push(file.content.slice(i, i + chunkSize));
-                    }
+            // Envoyer le message via l'API directe avec le contexte Discord
+            const response = await axios.post(`${this.apiUrl}/aa56e063-3b77-02d7-b424-6f6bd0e5a83a/message`, {
+                text: message,
+                roomId: this.discordChannelId, // Utiliser l'ID du canal Discord
+                userId: this.discordUserId, // Utiliser l'ID utilisateur Discord
+                source: "discord", // Indiquer que le message vient de Discord
+                files: this.currentFiles.map(f => ({
+                    name: f.name,
+                    content: f.content
+                }))
+            });
 
-                    // Envoyer l'en-tête du fichier
-                    await axios.post(this.discordWebhookUrl, {
-                        content: `📎 Fichier: ${file.name}`,
-                        username: "VSCode-User",
-                        avatar_url: "https://code.visualstudio.com/assets/images/code-stable.png"
-                    });
+            console.log('Received from API:', response.data);
 
-                    // Envoyer les morceaux
-                    for (let i = 0; i < chunks.length; i++) {
-                        const isLastChunk = i === chunks.length - 1;
-                        const chunkHeader = chunks.length > 1 ? `Partie ${i + 1}/${chunks.length}\n` : '';
-                        
-                        await axios.post(this.discordWebhookUrl, {
-                            content: `\`\`\`\n${chunkHeader}${chunks[i]}\n\`\`\``,
-                            username: "VSCode-User",
-                            avatar_url: "https://code.visualstudio.com/assets/images/code-stable.png"
-                        });
-
-                        if (!isLastChunk) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
-                }
-
-                // Envoyer le message après tous les fichiers
-                const response = await axios.post(this.discordWebhookUrl, {
-                    content: `<@1336772182855909551> ${message}`,
-                    username: "VSCode-User",
-                    avatar_url: "https://code.visualstudio.com/assets/images/code-stable.png",
-                    allowed_mentions: {
-                        users: ['1336772182855909551']
-                    }
-                });
-
-                // Ajouter à l'historique avec tous les fichiers
-                const filesInfo = this.currentFiles
-                    .map(f => `[${f.name}]`)
-                    .join(', ');
-                this.messages.push({ 
-                    type: 'user', 
-                    content: `[Fichiers joints: ${filesInfo}] ${message}`
-                });
-
-                return this.handleResponse(response);
+            this.messages.push({ type: 'user', content: message });
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                this.addBotResponse(response.data[0].text);
+                return response.data[0].text;
             } else {
-                // Message simple sans fichier
-                const response = await axios.post(this.discordWebhookUrl, {
-                    content: `<@1336772182855909551> ${message}`,
-                    username: "VSCode-User",
-                    avatar_url: "https://code.visualstudio.com/assets/images/code-stable.png",
-                    allowed_mentions: {
-                        users: ['1336772182855909551']
-                    }
-                });
-
-                this.messages.push({ type: 'user', content: message });
-                return this.handleResponse(response);
+                throw new Error('Unexpected API response format');
             }
         } catch (error) {
-            console.error('Error sending message:', error);
+            console.error('API Error:', error.response?.data || error.message);
             throw error;
         } finally {
             if (this.chatPanel) {
@@ -154,17 +117,7 @@ export class DiscordService implements MessageService {
         }
     }
 
-    private handleResponse(response: any): string {
-        if (response.status === 204) {
-            vscode.window.setStatusBarMessage(`Message envoyé à ${this.botName}`, 3000);
-            return `Message envoyé à ${this.botName}`;
-        } else {
-            throw new Error(`Unexpected response status: ${response.status}`);
-        }
-    }
-
     public addBotResponse(response: string) {
-        console.log('Adding bot response:', response);
         this.messages.push({ type: 'bot', content: response });
         if (this.chatPanel) {
             this.chatPanel.webview.html = this.getWebviewContent();
@@ -380,10 +333,5 @@ export class DiscordService implements MessageService {
 
     private clearContext() {
         this.currentFiles = [];
-    }
-
-    private setupDiscordListener() {
-        // Pas besoin d'écouter les messages ici car nous utilisons addBotResponse directement
-        // La méthode peut être supprimée ou laissée vide pour une utilisation future
     }
 } 
