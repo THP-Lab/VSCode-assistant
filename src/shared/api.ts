@@ -1,4 +1,5 @@
 export type ApiProvider =
+	| "eliza" // Primary provider
 	| "anthropic"
 	| "openrouter"
 	| "bedrock"
@@ -14,8 +15,17 @@ export type ApiProvider =
 	| "litellm"
 
 export interface ApiHandlerOptions {
+	elizaOptions?: {
+		discordUserId?: string // Add Discord user ID
+		baseUrl?: string // Add base URL option
+		customPatterns?: Array<{
+			regex: RegExp
+			responses: string[]
+		}>
+		customFallbacks?: string[]
+	}
+	apiKey?: string
 	apiModelId?: string
-	apiKey?: string // anthropic
 	liteLlmBaseUrl?: string
 	liteLlmModelId?: string
 	anthropicBaseUrl?: string
@@ -63,6 +73,22 @@ export interface ModelInfo {
 	description?: string
 }
 
+// Add Eliza model info
+export const elizaModels = {
+	eliza: {
+		contextWindow: 1,
+		maxTokens: 100,
+		supportsImages: false,
+		supportsPromptCache: false,
+		inputPrice: 0,
+		outputPrice: 0,
+		description: "Eliza - Classic rule-based chatbot",
+	},
+} as const satisfies Record<string, ModelInfo>
+
+export type ElizaModelId = keyof typeof elizaModels
+export const elizaDefaultModelId: ElizaModelId = "eliza"
+
 // Anthropic
 // https://docs.anthropic.com/en/docs/about-claude/models // prices updated 2025-01-02
 export type AnthropicModelId = keyof typeof anthropicModels
@@ -109,7 +135,7 @@ export const anthropicModels = {
 		cacheWritesPrice: 0.3,
 		cacheReadsPrice: 0.03,
 	},
-} as const satisfies Record<string, ModelInfo> // as const assertion makes the object deeply readonly
+} as const satisfies Record<string, ModelInfo>
 
 // AWS Bedrock
 // https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html

@@ -1,4 +1,3 @@
-import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiConfiguration, ModelInfo } from "../shared/api"
 import { AnthropicHandler } from "./providers/anthropic"
 import { AwsBedrockHandler } from "./providers/bedrock"
@@ -14,9 +13,12 @@ import { DeepSeekHandler } from "./providers/deepseek"
 import { MistralHandler } from "./providers/mistral"
 import { VsCodeLmHandler } from "./providers/vscode-lm"
 import { LiteLlmHandler } from "./providers/litellm"
+import { ElizaHandler } from "./providers/eliza"
+import { ElizaMessage } from "../shared/eliza"
+import { Anthropic } from "@anthropic-ai/sdk"
 
-export interface ApiHandler {
-	createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream
+export interface ApiHandler<T = Anthropic.Messages.MessageParam> {
+	createMessage(systemPrompt: string, messages: T[]): ApiStream
 	getModel(): { id: string; info: ModelInfo }
 }
 
@@ -27,6 +29,8 @@ export interface SingleCompletionHandler {
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 	const { apiProvider, ...options } = configuration
 	switch (apiProvider) {
+		case "eliza":
+			return new ElizaHandler(options)
 		case "anthropic":
 			return new AnthropicHandler(options)
 		case "openrouter":
@@ -54,6 +58,6 @@ export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 		case "litellm":
 			return new LiteLlmHandler(options)
 		default:
-			return new AnthropicHandler(options)
+			return new ElizaHandler(options)
 	}
 }

@@ -5,6 +5,7 @@ import { validateApiConfiguration, validateModelId } from "../../utils/validate"
 import { vscode } from "../../utils/vscode"
 import ApiOptions from "./ApiOptions"
 import SettingsButton from "../common/SettingsButton"
+import ElizaConfigSection from "./ElizaConfigSection"
 const IS_DEV = false // FIXME: use flags when packaging
 
 type SettingsViewProps = {
@@ -175,6 +176,11 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 						v{version}
 					</p>
 				</div>
+
+				{/* Show Eliza config when Eliza is selected */}
+				{apiConfiguration?.apiProvider === "eliza" && (
+					<ElizaConfigSection />
+				)}
 			</div>
 		</div>
 	)
